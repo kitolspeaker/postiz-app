@@ -9,6 +9,7 @@ import { Input } from '@gitroom/react/form/input';
 import { Checkbox } from '@gitroom/react/form/checkbox';
 import { useSettings } from '@gitroom/frontend/components/launches/helpers/use.values';
 import { ThreadsDto } from '@gitroom/nestjs-libraries/dtos/posts/providers-settings/threads.dto';
+import { ThreadsPreview } from './threads.preview';
 
 const SettingsComponent = () => {
   const { register, watch } = useSettings();
@@ -66,7 +67,7 @@ export default withProvider({
   postComment: PostComment.POST,
   minimumCharacters: [],
   SettingsComponent: SettingsComponent,
-  CustomPreviewComponent: undefined,
+  CustomPreviewComponent: ThreadsPreview,
   dto: ThreadsDto,
   maximumCharacters: 500,
 });

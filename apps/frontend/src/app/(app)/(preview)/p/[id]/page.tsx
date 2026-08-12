@@ -13,12 +13,70 @@ import { CopyClient } from '@gitroom/frontend/components/preview/copy.client';
 import { getT } from '@gitroom/react/translation/get.translation.service.backend';
 import { RenderPreviewDateClient } from '@gitroom/frontend/components/preview/render.preview.date.client';
 import { CreationMethodBadge } from '@gitroom/frontend/components/launches/creation.method.badge';
+import { ThreadsPostCard } from '@gitroom/frontend/components/new-launch/providers/threads/threads.post.card';
 
 dayjs.extend(utc);
 export const metadata: Metadata = {
   title: `${isGeneralServerSide() ? 'Postiz' : 'Gitroom'} Preview`,
   description: '',
 };
+
+  const parsePostSettings = (value: unknown): Record<string, any> => {
+    if (!value) {
+      return {};
+    }
+
+    if (typeof value === 'object') {
+      return value as Record<string, any>;
+    }
+
+    if (typeof value === 'string') {
+      try {
+        const parsed = JSON.parse(value);
+        return parsed && typeof parsed === 'object'
+          ? parsed
+          : {};
+      } catch {
+        return {};
+      }
+    }
+
+    return {};
+  };
+
+  const parsePostMedia = (
+    value: unknown
+  ): Array<{ path: string }> => {
+    if (!value) {
+      return [];
+    }
+
+    let parsed: unknown = value;
+
+    if (typeof value === 'string') {
+      try {
+        parsed = JSON.parse(value);
+      } catch {
+        return [];
+      }
+    }
+
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed
+      .filter(
+        (item: any) =>
+          item &&
+          typeof item.path === 'string' &&
+          item.path.length > 0
+      )
+      .map((item: any) => ({
+        path: item.path,
+      }));
+  };
+
 export default async function Auth(
   props: {
     params: Promise<{
@@ -111,72 +169,130 @@ export default async function Auth(
       <div className="flex flex-col lg:flex-row text-white w-full max-w-[1346px] mx-auto">
         <div className="flex-1">
           <div className="gap-[20px] flex flex-col">
-            {post.map((p: any, index: number) => (
-              <div
-                key={String(p.id)}
-                className="relative px-4 py-4 bg-third border border-tableBorder"
-              >
-                <div className="flex space-x-3">
-                  <div>
-                    <div className="flex shrink-0 rounded-full h-30 w-30 relative">
-                      <div className="w-[50px] h-[50px] z-[20]">
-                        <img
-                          className="w-full h-full relative z-[20] bg-black aspect-square rounded-full border-tableBorder"
-                          alt={post[0].integration.name}
-                          src={post[0].integration.picture}
-                        />
-                      </div>
-                      <div className="absolute -end-[5px] -bottom-[5px] w-[30px] h-[30px] z-[20]">
-                        <img
-                          className="w-full h-full bg-black aspect-square rounded-full border-tableBorder"
-                          alt={post[0].integration.providerIdentifier}
-                          src={`/icons/platforms/${post[0].integration.providerIdentifier}.png`}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex-1 space-y-1">
-                    <div className="flex items-center space-x-2">
-                      <h2 className="text-sm font-semibold">
-                        {post[0].integration.name}
-                      </h2>
-                      <span className="text-sm text-gray-500">
-                        @{post[0].integration.profile}
-                      </span>
-                      {index === 0 && (
-                        <CreationMethodBadge
-                          creationMethod={p.creationMethod}
-                          size="md"
-                        />
-                      )}
-                    </div>
-                    <div className="flex flex-col gap-[20px]">
-                      <div
-                        className="text-sm whitespace-pre-wrap"
-                        dangerouslySetInnerHTML={{
-                          __html: sanitizePostContent(p.content),
-                        }}
-                      />
-                      <div className="flex w-full gap-[10px]">
-                        {JSON.parse(p?.image || '[]').map((p: any) => (
-                          <div
-                            key={p.name}
-                            className="flex-1 rounded-[10px] max-h-[500px] overflow-hidden"
-                          >
-                            <VideoOrImage
-                              isContain={true}
-                              src={p.path}
-                              autoplay={true}
-                            />
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+	    {post[0].integration.providerIdentifier === 'threads' ? (
+	      <div className="overflow-hidden rounded-[16px] border border-[#e1e1e1] bg-white">
+	        {post.map((p: any, index: number) => {
+	          const settings = parsePostSettings(p.settings);
+
+	          const pollEnabled =
+	            settings.poll_enabled === true ||
+	            settings.poll_enabled === 'true';
+
+	          const pollOptions = pollEnabled
+	            ? [
+	                settings.poll_option_a,
+	                settings.poll_option_b,
+	                settings.poll_option_c,
+	                settings.poll_option_d,
+	              ].filter(
+	                (option): option is string =>
+	                  typeof option === 'string' &&
+	                  option.trim().length > 0
+	              )
+	            : [];
+
+	          const topicTag =
+	            index === 0 &&
+	            typeof settings.topic_tag === 'string'
+	              ? settings.topic_tag
+	              : undefined;
+
+	          return (
+	            <ThreadsPostCard
+	              key={String(p.id)}
+	              name={post[0].integration.name}
+	              picture={post[0].integration.picture}
+	              contentHtml={sanitizePostContent(p.content)}
+	              topicTag={topicTag}
+	              pollOptions={
+	                index === 0 ? pollOptions : []
+	              }
+	              media={parsePostMedia(p.image)}
+	              showThreadLine={index < post.length - 1}
+	            />
+	          );
+	        })}
+	      </div>
+	    ) : (
+	      post.map((p: any, index: number) => (
+	        <div
+	          key={String(p.id)}
+	          className="relative px-4 py-4 bg-third border border-tableBorder"
+	        >
+	          <div className="flex space-x-3">
+	            <div>
+	              <div className="flex shrink-0 rounded-full h-30 w-30 relative">
+	                <div className="w-[50px] h-[50px] z-[20]">
+	                  <img
+	                    className="w-full h-full relative z-[20] bg-black aspect-square rounded-full border-tableBorder"
+	                    alt={post[0].integration.name}
+	                    src={post[0].integration.picture}
+	                  />
+	                </div>
+
+	                <div className="absolute -end-[5px] -bottom-[5px] w-[30px] h-[30px] z-[20]">
+	                  <img
+	                    className="w-full h-full bg-black aspect-square rounded-full border-tableBorder"
+	                    alt={
+	                      post[0].integration.providerIdentifier
+	                    }
+	                    src={`/icons/platforms/${post[0].integration.providerIdentifier}.png`}
+	                  />
+	                </div>
+	              </div>
+	            </div>
+
+	            <div className="flex-1 space-y-1">
+	              <div className="flex items-center space-x-2">
+	                <h2 className="text-sm font-semibold">
+	                  {post[0].integration.name}
+	                </h2>
+
+	                <span className="text-sm text-gray-500">
+	                  @{post[0].integration.profile}
+	                </span>
+
+	                {index === 0 && (
+	                  <CreationMethodBadge
+	                    creationMethod={p.creationMethod}
+	                    size="md"
+	                  />
+	                )}
+	              </div>
+
+	              <div className="flex flex-col gap-[20px]">
+	                <div
+	                  className="text-sm whitespace-pre-wrap"
+	                  dangerouslySetInnerHTML={{
+	                    __html: sanitizePostContent(
+	                      p.content
+	                    ),
+	                  }}
+	                />
+
+	                <div className="flex w-full gap-[10px]">
+	                  {JSON.parse(p?.image || '[]').map(
+	                    (image: any) => (
+	                      <div
+	                        key={image.name}
+	                        className="flex-1 rounded-[10px] max-h-[500px] overflow-hidden"
+	                      >
+	                        <VideoOrImage
+	                          isContain={true}
+	                          src={image.path}
+	                          autoplay={true}
+	                        />
+	                      </div>
+	                    )
+	                  )}
+	                </div>
+	              </div>
+	            </div>
+	          </div>
+	        </div>
+	      ))
+            )}
+	  </div>
         </div>
         <div className="w-full lg:w-96 lg:flex-shrink-0">
           <div className="p-4 pt-0">
