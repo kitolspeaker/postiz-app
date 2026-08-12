@@ -12,12 +12,14 @@ import dayjs from 'dayjs';
 import {
   BadBody,
   SocialAbstract,
+  ValidityMedia,
 } from '@gitroom/nestjs-libraries/integrations/social.abstract';
 import { capitalize, chunk } from 'lodash';
 import { Plug } from '@gitroom/helpers/decorators/plug.decorator';
 import { Integration } from '@prisma/client';
 import { stripHtmlValidation } from '@gitroom/helpers/utils/strip.html.validation';
 import { hasExtension } from '@gitroom/helpers/utils/has.extension';
+import { ThreadsDto } from '@gitroom/nestjs-libraries/dtos/posts/providers-settings/threads.dto';
 
 export class ThreadsProvider extends SocialAbstract implements SocialProvider {
   identifier = 'threads';
@@ -34,10 +36,24 @@ export class ThreadsProvider extends SocialAbstract implements SocialProvider {
   refreshCron = true;
 
   editor = 'normal' as const;
+  dto = ThreadsDto;
   maxLength() {
     return 500;
   }
 
+  override async checkValidity(
+    posts: Array<ValidityMedia[]>,
+    settings: any
+  ): Promise<string | true> {
+    if (
+      this.assetBoolean(settings?.poll_enabled) &&
+      (posts?.[0]?.length || 0) > 0
+    ) {
+      return 'Threads polls are only available for text-only posts.';
+    }
+
+    return true;
+  }
   override handleErrors(body: string):
     | {
         type: 'refresh-token' | 'bad-body';
@@ -327,8 +343,14 @@ export class ThreadsProvider extends SocialAbstract implements SocialProvider {
     message: string,
     replyToId?: string,
     quoteId?: string,
-    topicTag?: string
-  ): Promise<string> {
+    topicTag?: string,
+    pollAttachment?: {
+      option_a: string;
+      option_b: string;
+      option_c?: string;
+      option_d?: string;
+    }
+): Promise<string> {
     const form = new FormData();
     form.append('media_type', 'TEXT');
     form.append('text', message);
@@ -336,6 +358,11 @@ export class ThreadsProvider extends SocialAbstract implements SocialProvider {
     if (topicTag) {
       form.append('topic_tag', topicTag);
     }
+
+    if (pollAttachment) {
+      form.append('poll_attachment', JSON.stringify(pollAttachment));
+    }
+
     if (replyToId) {
       form.append('reply_to_id', replyToId);
     }
@@ -444,6 +471,11 @@ export class ThreadsProvider extends SocialAbstract implements SocialProvider {
       active_thread_finisher: boolean;
       thread_finisher: string;
       topic_tag?: string;
+      poll_enabled?: boolean;
+      poll_option_a?: string;
+      poll_option_b?: string;
+      poll_option_c?: string;
+      poll_option_d?: string;
     }>[],
     integration: Integration
   ): Promise<PostResponse[]> {
@@ -453,6 +485,57 @@ export class ThreadsProvider extends SocialAbstract implements SocialProvider {
 
     const [firstPost] = postDetails;
     const topicTag = firstPost.settings?.topic_tag?.trim() || undefined;
+    const pollEnabled = this.assetBoolean(
+      firstPost.settings?.poll_enabled
+    );
+    const pollOptionA =
+      firstPost.settings?.poll_option_a?.trim();
+
+    const pollOptionB =
+      firstPost.settings?.poll_option_b?.trim();
+
+    const pollOptionC =
+      firstPost.settings?.poll_option_c?.trim();
+
+    const pollOptionD =
+      firstPost.settings?.poll_option_d?.trim();
+
+    if (
+      pollEnabled &&
+      (firstPost.media?.length || 0) > 0
+    ) {
+      throw new BadBody(
+        this.identifier,
+        '{}',
+        '{}',
+        'Threads polls are only available for text-only posts.'
+      );
+    }
+
+    if (
+      pollEnabled &&
+      (!pollOptionA || !pollOptionB)
+    ) {
+      throw new BadBody(
+        this.identifier,
+        '{}',
+        '{}',
+        'Threads polls require at least two options.'
+      );
+    }
+
+    const pollAttachment = pollEnabled
+      ? {
+          option_a: pollOptionA!,
+          option_b: pollOptionB!,
+          ...(pollOptionC
+            ? { option_c: pollOptionC }
+            : {}),
+          ...(pollOptionD
+            ? { option_d: pollOptionD }
+            : {}),
+        }
+      : undefined;
 
     // Carousels: only create the child containers here, the carousel container
     // itself is created by finalizePost once the children are processed.
@@ -490,7 +573,15 @@ export class ThreadsProvider extends SocialAbstract implements SocialProvider {
     // threads_publish runs in finalizePost.
     const containerId =
       !firstPost.media || firstPost.media.length === 0
-        ? await this.createTextContent(userId, accessToken, firstPost.message,undefined,undefined,topicTag)
+        ? await this.createTextContent(
+            userId,
+            accessToken,
+	    firstPost.message,
+	    undefined,
+	    undefined,
+	    topicTag,
+	    pollAttachment
+          )
         : await this.createSingleMediaContent(
             userId,
             accessToken,
