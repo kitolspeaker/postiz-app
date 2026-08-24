@@ -1,5 +1,6 @@
 import {
   IsBoolean,
+  IsByteLength,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -29,6 +30,9 @@ export class ThreadsDto {
   @Matches(/\S/, {
     message: 'Threads polls require at least two options.',
   })
+  @IsByteLength(1, 25, {
+    message: 'Threads API limits each poll option to 25 UTF-8 bytes.',
+  })
   poll_option_a?: string;
 
   @ValidateIf((o) => o.poll_enabled)
@@ -39,13 +43,22 @@ export class ThreadsDto {
   @Matches(/\S/, {
     message: 'Threads polls require at least two options.',
   })
+  @IsByteLength(1, 25, {
+    message: 'Threads API limits each poll option to 25 UTF-8 bytes.',
+  })
   poll_option_b?: string;
 
   @IsOptional()
   @IsString()
+  @IsByteLength(0, 25, {
+    message: 'Threads API limits each poll option to 25 UTF-8 bytes.',
+  })
   poll_option_c?: string;
 
   @IsOptional()
   @IsString()
+  @IsByteLength(0, 25, {
+    message: 'Threads API limits each poll option to 25 UTF-8 bytes.',
+  })
   poll_option_d?: string;
 }
