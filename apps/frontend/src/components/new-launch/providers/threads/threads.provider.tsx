@@ -11,10 +11,35 @@ import { useSettings } from '@gitroom/frontend/components/launches/helpers/use.v
 import { ThreadsDto } from '@gitroom/nestjs-libraries/dtos/posts/providers-settings/threads.dto';
 import { ThreadsPreview } from './threads.preview';
 
+const THREADS_POLL_OPTION_BYTE_LIMIT = 25;
+
+const utf8ByteLength = (value: unknown) =>
+  new TextEncoder().encode(typeof value === 'string' ? value : '').length;
+
+const PollByteCounter = ({ value }: { value: unknown }) => {
+  const byteLength = utf8ByteLength(value);
+  const exceedsLimit = byteLength > THREADS_POLL_OPTION_BYTE_LIMIT;
+
+  return (
+    <div
+      className={`text-xs ${
+        exceedsLimit ? 'text-red-500' : 'opacity-60'
+      }`}
+    >
+      {byteLength}/{THREADS_POLL_OPTION_BYTE_LIMIT} UTF-8 bytes
+      {exceedsLimit ? ' — too long for the Threads API' : ''}
+    </div>
+  );
+};
+
 const SettingsComponent = () => {
   const { register, watch } = useSettings();
 
   const pollEnabled = watch('poll_enabled');
+  const pollOptionA = watch('poll_option_a');
+  const pollOptionB = watch('poll_option_b');
+  const pollOptionC = watch('poll_option_c');
+  const pollOptionD = watch('poll_option_d');
 
   return (
     <>
@@ -31,28 +56,42 @@ const SettingsComponent = () => {
 
         {pollEnabled && (
           <div className="flex flex-col gap-[10px]">
-            <Input
-              label="Poll option 1"
-              {...register('poll_option_a')}
-            />
+            <div>
+              <Input
+                label="Poll option 1"
+                {...register('poll_option_a')}
+              />
+              <PollByteCounter value={pollOptionA} />
+            </div>
 
-            <Input
-              label="Poll option 2"
-              {...register('poll_option_b')}
-            />
+            <div>
+              <Input
+                label="Poll option 2"
+                {...register('poll_option_b')}
+              />
+              <PollByteCounter value={pollOptionB} />
+            </div>
 
-            <Input
-              label="Poll option 3 (optional)"
-              {...register('poll_option_c')}
-            />
+            <div>
+              <Input
+                label="Poll option 3 (optional)"
+                {...register('poll_option_c')}
+              />
+              <PollByteCounter value={pollOptionC} />
+            </div>
 
-            <Input
-              label="Poll option 4 (optional)"
-              {...register('poll_option_d')}
-            />
+            <div>
+              <Input
+                label="Poll option 4 (optional)"
+                {...register('poll_option_d')}
+              />
+              <PollByteCounter value={pollOptionD} />
+            </div>
 
             <div className="text-sm opacity-70">
-              Threads polls are available for text-only posts.
+              Threads polls are available for text-only posts. The Threads API
+              currently limits each poll option to 25 UTF-8 bytes, which can be
+              fewer than 25 visible characters for Chinese and emoji text.
             </div>
           </div>
         )}
