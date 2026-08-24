@@ -29,6 +29,9 @@ export class ThreadsDto {
   @Matches(/\S/, {
     message: 'Threads polls require at least two options.',
   })
+  @MaxLength(25, {
+    message: 'Threads API allows up to 25 characters per poll option.',
+  })
   poll_option_a?: string;
 
   @ValidateIf((o) => o.poll_enabled)
@@ -39,13 +42,22 @@ export class ThreadsDto {
   @Matches(/\S/, {
     message: 'Threads polls require at least two options.',
   })
+  @MaxLength(25, {
+    message: 'Threads API allows up to 25 characters per poll option.',
+  })
   poll_option_b?: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(25, {
+    message: 'Threads API allows up to 25 characters per poll option.',
+  })
   poll_option_c?: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(25, {
+    message: 'Threads API allows up to 25 characters per poll option.',
+  })
   poll_option_d?: string;
 }
