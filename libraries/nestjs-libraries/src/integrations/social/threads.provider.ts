@@ -61,6 +61,20 @@ export class ThreadsProvider extends SocialAbstract implements SocialProvider {
       }
     | undefined {
     console.log(body);
+    // Meta occasionally returns code 2 for media publishing. Do not retry an
+    // uncertain publish outcome automatically: it could create a duplicate post.
+    try {
+      const meta = JSON.parse(body);
+      if (meta?.error?.code === 2 && meta?.error?.is_transient === true) {
+        return {
+          type: 'bad-body',
+          value:
+            'Meta Threads reported a temporary error. Check your Threads profile before retrying to avoid duplicate posts.',
+        };
+      }
+    } catch {
+      // Fall back to the existing string-based classifications.
+    }
     if (body.includes('Error validating access token')) {
       return { type: 'refresh-token', value: 'Threads access token expired' };
     }
@@ -202,7 +216,9 @@ export class ThreadsProvider extends SocialAbstract implements SocialProvider {
         this.identifier,
         JSON.stringify({ status, error_message }),
         '{}',
-        error_message || 'Threads could not process the media'
+        error_message && error_message !== 'UNKNOWN'
+          ? error_message
+          : 'Threads could not process the media; please check the media format and try again'
       );
     }
 
@@ -268,6 +284,8 @@ export class ThreadsProvider extends SocialAbstract implements SocialProvider {
     const mediaType = hasExtension(media.path, 'mp4')
       ? 'video_url'
       : 'image_url';
+    // Keep the original caption, including #hashtags. Try form-encoded POST
+    // parameters for media creation, consistent with the text-only path.
     const mediaParams = new URLSearchParams({
       ...(mediaType === 'video_url' ? { video_url: media.path } : {}),
       ...(mediaType === 'image_url' ? { image_url: media.path } : {}),
@@ -281,9 +299,10 @@ export class ThreadsProvider extends SocialAbstract implements SocialProvider {
 
     const { id: mediaId } = await (
       await this.fetch(
-        `https://graph.threads.net/v1.0/${userId}/threads?${mediaParams.toString()}`,
+        `https://graph.threads.net/v1.0/${userId}/threads`,
         {
           method: 'POST',
+          body: mediaParams,
         }
       )
     ).json();
@@ -327,9 +346,10 @@ export class ThreadsProvider extends SocialAbstract implements SocialProvider {
 
     const { id: containerId } = await (
       await this.fetch(
-        `https://graph.threads.net/v1.0/${userId}/threads?${params.toString()}`,
+        `https://graph.threads.net/v1.0/${userId}/threads`,
         {
           method: 'POST',
+          body: params,
         }
       )
     ).json();
@@ -350,7 +370,7 @@ export class ThreadsProvider extends SocialAbstract implements SocialProvider {
       option_c?: string;
       option_d?: string;
     }
-): Promise<string> {
+  ): Promise<string> {
     const form = new FormData();
     form.append('media_type', 'TEXT');
     form.append('text', message);
@@ -371,7 +391,7 @@ export class ThreadsProvider extends SocialAbstract implements SocialProvider {
       form.append('quote_post_id', quoteId);
     }
 
-    const { id: contentId, ...all } = await (
+    const { id: contentId } = await (
       await this.fetch(`https://graph.threads.net/v1.0/${userId}/threads`, {
         method: 'POST',
         body: form,
@@ -576,11 +596,11 @@ export class ThreadsProvider extends SocialAbstract implements SocialProvider {
         ? await this.createTextContent(
             userId,
             accessToken,
-	    firstPost.message,
-	    undefined,
-	    undefined,
-	    topicTag,
-	    pollAttachment
+            firstPost.message,
+            undefined,
+            undefined,
+            topicTag,
+            pollAttachment
           )
         : await this.createSingleMediaContent(
             userId,
@@ -676,9 +696,10 @@ export class ThreadsProvider extends SocialAbstract implements SocialProvider {
 
       const { id: containerId } = await (
         await this.fetch(
-          `https://graph.threads.net/v1.0/${integration.internalId}/threads?${params.toString()}`,
+          `https://graph.threads.net/v1.0/${integration.internalId}/threads`,
           {
             method: 'POST',
+            body: params,
           }
         )
       ).json();
