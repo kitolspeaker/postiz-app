@@ -6,6 +6,7 @@ import { useSettings } from '@gitroom/frontend/components/launches/helpers/use.v
 import { useMediaDirectory } from '@gitroom/react/helpers/use.media.directory';
 import { stripHtmlValidation } from '@gitroom/helpers/utils/strip.html.validation';
 import { ThreadsPostCard } from './threads.post.card';
+import { getThreadsTopicPreview } from './threads.topic.preview';
 
 export const ThreadsPreview: FC<{
   maximumCharacters?: number;
@@ -44,13 +45,18 @@ export const ThreadsPreview: FC<{
           path: mediaDir.set(item.path),
         }));
 
+        const topicPreview =
+          index === 0
+            ? getThreadsTopicPreview(contentHtml, topicTag)
+            : { topicTag: undefined, content: contentHtml };
+
         return (
           <ThreadsPostCard
             key={post.id || index}
             name={integration?.name || 'Threads user'}
             picture={integration?.picture}
-            contentHtml={contentHtml}
-            topicTag={index === 0 ? topicTag : undefined}
+            contentHtml={topicPreview.content}
+            topicTag={topicPreview.topicTag}
             pollOptions={
               index === 0 ? pollOptions : []
             }

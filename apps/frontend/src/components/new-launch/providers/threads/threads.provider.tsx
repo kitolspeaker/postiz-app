@@ -47,6 +47,11 @@ const SettingsComponent = () => {
         label="Topic tag (Threads)"
         {...register('topic_tag')}
       />
+      <div className="mb-3 text-xs opacity-70">
+        An explicit topic takes priority in the preview. Caption #hashtags
+        are preserved. When the field is empty, Threads may use the first
+        caption hashtag as the topic.
+      </div>
 
       <div className="mt-5 flex flex-col gap-[10px] border-tableBorder border p-[15px] rounded-lg mb-5">
         <Checkbox

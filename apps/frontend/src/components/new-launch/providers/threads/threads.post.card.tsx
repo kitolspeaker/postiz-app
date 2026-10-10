@@ -115,12 +115,9 @@ export const ThreadsPostCard = ({
           </div>
 
           {/* Content */}
-          <div
-            className="mt-[3px] whitespace-pre-wrap break-words text-[15px] leading-[20px]"
-            dangerouslySetInnerHTML={{
-              __html: contentHtml,
-            }}
-          />
+          <div className="mt-[3px] whitespace-pre-wrap break-words text-[15px] leading-[20px]">
+            {contentHtml}
+          </div>
 
           {/* Media */}
           {!!media.length && (
